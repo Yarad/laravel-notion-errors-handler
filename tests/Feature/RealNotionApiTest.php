@@ -40,6 +40,7 @@ class RealNotionApiTest extends TestCase
         $app['config']->set('notion-exceptions.enabled', true);
         $app['config']->set('notion-exceptions.environment', 'testing');
         $app['config']->set('cache.default', 'array');
+        $app['config']->set('queue.default', 'sync');
 
         // Use default field names that match the plan
         $app['config']->set('notion-exceptions.fields', [

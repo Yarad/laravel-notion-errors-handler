@@ -123,8 +123,6 @@ return [
     |
     */
     'queue' => [
-        'enabled' => env('NOTION_QUEUE_ENABLED', false),
-        'connection' => env('NOTION_QUEUE_CONNECTION', null),
         'queue' => env('NOTION_QUEUE_NAME', 'default'),
     ],
 ];

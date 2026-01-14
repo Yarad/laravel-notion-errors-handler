@@ -8,5 +8,6 @@ parameters:
     ignoreErrors:
         - '#Method .* has parameter .* with no type specified#'
         - '#Cannot call method .* on mixed#'
+        - '#Dead catch - Throwable is never thrown in the try block#'
         -
             identifier: missingType.generics

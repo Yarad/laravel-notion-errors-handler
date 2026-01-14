@@ -14,6 +14,7 @@ use Yarad\NotionExceptionHandler\Notion\Content\PageBuilder;
 use Yarad\NotionExceptionHandler\Notion\DatabaseManager;
 use Yarad\NotionExceptionHandler\Notion\NotionClient;
 use Yarad\NotionExceptionHandler\RateLimiter\ExceptionRateLimiter;
+use Yarad\NotionExceptionHandler\Serialization\ExceptionSerializer;
 
 class NotionExceptionHandlerServiceProvider extends ServiceProvider
 {
@@ -99,9 +100,13 @@ class NotionExceptionHandlerServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(CommonContextCollector::class, function ($app) {
+            /** @var string $environment */
+            $environment = config('app.env', 'production');
+
             return new CommonContextCollector(
                 requestCollector: $app->make(RequestContextCollector::class),
                 consoleCollector: $app->make(ConsoleContextCollector::class),
+                environment: $environment,
             );
         });
 
@@ -120,6 +125,10 @@ class NotionExceptionHandlerServiceProvider extends ServiceProvider
                 pageBuilder: $app->make(PageBuilder::class),
             );
         });
+
+        $this->app->singleton(ExceptionSerializer::class, function () {
+            return new ExceptionSerializer();
+        });
     }
 
     /**
@@ -128,24 +137,24 @@ class NotionExceptionHandlerServiceProvider extends ServiceProvider
     protected function registerExceptionReporter(): void
     {
         $this->app->singleton(ExceptionReporter::class, function ($app) {
-            /** @var string|null $databaseId */
-            $databaseId = config('notion-exceptions.database_id');
             /** @var bool $enabled */
             $enabled = config('notion-exceptions.enabled', true);
-            /** @var string $environment */
-            $environment = config('notion-exceptions.environment') ?? config('app.env') ?? 'production';
+            /** @var string|null $databaseId */
+            $databaseId = config('notion-exceptions.database_id');
             /** @var array<class-string<\Throwable>> $ignoredExceptions */
             $ignoredExceptions = config('notion-exceptions.ignored_exceptions', []);
 
+            /** @var string $queueName */
+            $queueName = config('notion-exceptions.queue.queue', 'default');
+
             return new ExceptionReporter(
-                databaseManager: $app->make(DatabaseManager::class),
                 fingerprintGenerator: $app->make(FingerprintGenerator::class),
-                rateLimiter: $app->make(ExceptionRateLimiter::class),
                 contextCollector: $app->make(ContextCollectorInterface::class),
-                databaseId: $databaseId,
+                exceptionSerializer: $app->make(ExceptionSerializer::class),
                 enabled: $enabled,
-                environment: $environment,
+                databaseId: $databaseId,
                 ignoredExceptions: $ignoredExceptions,
+                queueName: $queueName,
             );
         });
     }

@@ -29,9 +29,11 @@ class CommonContextCollectorTest extends TestCase
         // When
         $context = $this->whenCollect($collector);
 
-        // Then - should delegate to ConsoleContextCollector
+        // Then - should delegate to ConsoleContextCollector and include environment
         $this->assertArrayHasKey('type', $context);
         $this->assertEquals('console', $context['type']);
+        $this->assertArrayHasKey('environment', $context);
+        $this->assertEquals('testing', $context['environment']);
     }
 
     public function testDelegatesToConsoleCollectorWhenNotHttp(): void
@@ -45,13 +47,20 @@ class CommonContextCollectorTest extends TestCase
             ->method('collect')
             ->willReturn(['type' => 'console', 'command' => 'test']);
 
-        $collector = new CommonContextCollector($requestCollector, $consoleCollector);
+        $collector = new CommonContextCollector(
+            $requestCollector,
+            $consoleCollector,
+            environment: 'staging',
+        );
 
         // When
         $context = $collector->collect();
 
         // Then
-        $this->assertEquals(['type' => 'console', 'command' => 'test'], $context);
+        $this->assertEquals('console', $context['type']);
+        $this->assertEquals('test', $context['command']);
+        $this->assertArrayHasKey('environment', $context);
+        $this->assertEquals('staging', $context['environment']);
     }
 
     // Given methods
@@ -65,7 +74,11 @@ class CommonContextCollectorTest extends TestCase
         ]);
         $consoleCollector = new ConsoleContextCollector();
 
-        return new CommonContextCollector($requestCollector, $consoleCollector);
+        return new CommonContextCollector(
+            $requestCollector,
+            $consoleCollector,
+            environment: 'testing',
+        );
     }
 
     // When methods

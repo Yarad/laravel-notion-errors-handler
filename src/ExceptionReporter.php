@@ -8,30 +8,28 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 use Yarad\NotionExceptionHandler\Context\ContextCollectorInterface;
 use Yarad\NotionExceptionHandler\Fingerprint\FingerprintGenerator;
-use Yarad\NotionExceptionHandler\Notion\DatabaseManager;
-use Yarad\NotionExceptionHandler\RateLimiter\ExceptionRateLimiter;
+use Yarad\NotionExceptionHandler\Jobs\ReportExceptionJob;
+use Yarad\NotionExceptionHandler\Serialization\ExceptionSerializer;
 
 class ExceptionReporter
 {
     /**
-     * @param DatabaseManager $databaseManager
      * @param FingerprintGenerator $fingerprintGenerator
-     * @param ExceptionRateLimiter $rateLimiter
      * @param ContextCollectorInterface $contextCollector
-     * @param string|null $databaseId
-     * @param bool $enabled
-     * @param string $environment
-     * @param array<class-string<Throwable>> $ignoredExceptions
+     * @param ExceptionSerializer $exceptionSerializer
+     * @param bool $enabled Whether the reporter is enabled
+     * @param string|null $databaseId The Notion database ID
+     * @param array<class-string<Throwable>> $ignoredExceptions List of exception classes to ignore
+     * @param string $queueName The queue name to use
      */
     public function __construct(
-        private readonly DatabaseManager $databaseManager,
         private readonly FingerprintGenerator $fingerprintGenerator,
-        private readonly ExceptionRateLimiter $rateLimiter,
         private readonly ContextCollectorInterface $contextCollector,
-        private readonly ?string $databaseId,
-        private readonly bool $enabled,
-        private readonly string $environment,
+        private readonly ExceptionSerializer $exceptionSerializer,
+        private readonly bool $enabled = true,
+        private readonly ?string $databaseId = null,
         private readonly array $ignoredExceptions = [],
+        private readonly string $queueName = 'default',
     ) {
     }
 
@@ -40,7 +38,7 @@ class ExceptionReporter
      *
      * @param Throwable $exception The exception to report
      *
-     * @return bool True if the exception was reported, false otherwise
+     * @return bool True if the exception was reported (or dispatched), false otherwise
      */
     public function report(Throwable $exception): bool
     {
@@ -51,30 +49,16 @@ class ExceptionReporter
         try {
             $fingerprint = $this->fingerprintGenerator->generate($exception);
 
-            // Check rate limiting
-            if (!$this->rateLimiter->shouldAllowGlobal()) {
-                $this->logRateLimited($exception, 'global');
-
-                return false;
-            }
-
-            if (!$this->rateLimiter->shouldAllow($fingerprint)) {
-                $this->logRateLimited($exception, $fingerprint);
-
-                return false;
-            }
-
-            // Collect context
+            // Collect context synchronously (required for request data)
             $context = $this->contextCollector->collect();
 
-            // Record to Notion
-            /** @var string $databaseId */
-            $databaseId = $this->databaseId;
-            $this->databaseManager->recordException(
+            // databaseId is guaranteed to be non-null and non-empty after shouldReport check
+            $databaseId = (string) $this->databaseId;
+
+            $this->dispatchToQueue(
                 databaseId: $databaseId,
                 exception: $exception,
                 fingerprint: $fingerprint,
-                environment: $this->environment,
                 context: $context,
             );
 
@@ -85,6 +69,35 @@ class ExceptionReporter
 
             return false;
         }
+    }
+
+    /**
+     * Dispatch exception reporting to the queue.
+     *
+     * @param string $databaseId The Notion database ID
+     * @param Throwable $exception The exception to report
+     * @param string $fingerprint The exception fingerprint
+     * @param array<string, mixed> $context The collected context
+     */
+    protected function dispatchToQueue(
+        string $databaseId,
+        Throwable $exception,
+        string $fingerprint,
+        array $context,
+    ): void {
+        // Extract exception data for serialization (exceptions can't be serialized directly)
+        $exceptionData = $this->exceptionSerializer->toArray($exception);
+
+        $job = new ReportExceptionJob(
+            databaseId: $databaseId,
+            exceptionData: $exceptionData,
+            fingerprint: $fingerprint,
+            context: $context,
+        );
+
+        $job->onQueue($this->queueName);
+
+        dispatch($job);
     }
 
     /**
@@ -127,18 +140,6 @@ class ExceptionReporter
     }
 
     /**
-     * Log when an exception is rate limited.
-     */
-    protected function logRateLimited(Throwable $exception, string $limitType): void
-    {
-        Log::debug('Notion exception handler: Rate limited', [
-            'exception' => get_class($exception),
-            'message' => $exception->getMessage(),
-            'limit_type' => $limitType,
-        ]);
-    }
-
-    /**
      * Log when reporting fails.
      */
     protected function logReportingError(Throwable $reportingError, Throwable $originalException): void
@@ -165,15 +166,17 @@ class ExceptionReporter
      */
     public function getStatus(): array
     {
+        $context = $this->contextCollector->collect();
+
         return [
             'enabled' => $this->enabled,
             'database_id' => $this->databaseId !== null && $this->databaseId !== '' ? '***configured***' : null,
-            'environment' => $this->environment,
-            'rate_limiting' => [
-                'enabled' => $this->rateLimiter->isEnabled(),
-                'max_per_minute' => $this->rateLimiter->getMaxPerMinute(),
-            ],
+            'environment' => $context['environment'] ?? 'unknown',
             'ignored_exceptions_count' => count($this->ignoredExceptions),
+            'rate_limiting' => [
+                'enabled' => config('notion-exceptions.rate_limit.enabled', true),
+                'max_per_minute' => config('notion-exceptions.rate_limit.max_per_minute', 10),
+            ],
         ];
     }
 
@@ -187,35 +190,4 @@ class ExceptionReporter
             && $this->databaseId !== '';
     }
 
-    /**
-     * Get the database manager instance.
-     */
-    public function getDatabaseManager(): DatabaseManager
-    {
-        return $this->databaseManager;
-    }
-
-    /**
-     * Get the fingerprint generator instance.
-     */
-    public function getFingerprintGenerator(): FingerprintGenerator
-    {
-        return $this->fingerprintGenerator;
-    }
-
-    /**
-     * Get the rate limiter instance.
-     */
-    public function getRateLimiter(): ExceptionRateLimiter
-    {
-        return $this->rateLimiter;
-    }
-
-    /**
-     * Get the context collector instance.
-     */
-    public function getContextCollector(): ContextCollectorInterface
-    {
-        return $this->contextCollector;
-    }
 }

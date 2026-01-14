@@ -28,8 +28,7 @@ class DatabaseManager
      * @param string $databaseId The database ID
      * @param Throwable $exception The exception
      * @param string $fingerprint The exception fingerprint
-     * @param string $environment The environment name
-     * @param array<string, mixed> $context The request context
+     * @param array<string, mixed> $context The request context (must include 'environment' key)
      *
      * @return Page The created or updated page
      */
@@ -37,7 +36,6 @@ class DatabaseManager
         string $databaseId,
         Throwable $exception,
         string $fingerprint,
-        string $environment,
         array $context,
     ): Page {
         $existingPage = $this->findExistingException($databaseId, $fingerprint);
@@ -45,6 +43,9 @@ class DatabaseManager
         if ($existingPage !== null) {
             return $this->updateExistingException($existingPage);
         }
+
+        /** @var string $environment */
+        $environment = $context['environment'] ?? 'unknown';
 
         return $this->createNewException($databaseId, $exception, $fingerprint, $environment, $context);
     }

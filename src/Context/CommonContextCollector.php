@@ -9,6 +9,7 @@ class CommonContextCollector implements ContextCollectorInterface
     public function __construct(
         private readonly RequestContextCollector $requestCollector,
         private readonly ConsoleContextCollector $consoleCollector,
+        private readonly string $environment = 'production',
     ) {
     }
 
@@ -19,11 +20,21 @@ class CommonContextCollector implements ContextCollectorInterface
      */
     public function collect(): array
     {
-        if ($this->isHttpRequest()) {
-            return $this->requestCollector->collect();
-        }
+        $context = $this->isHttpRequest()
+            ? $this->requestCollector->collect()
+            : $this->consoleCollector->collect();
 
-        return $this->consoleCollector->collect();
+        $context['environment'] = $this->collectEnvironment();
+
+        return $context;
+    }
+
+    /**
+     * Get the application environment.
+     */
+    protected function collectEnvironment(): string
+    {
+        return $this->environment;
     }
 
     /**
