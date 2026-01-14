@@ -173,10 +173,6 @@ class ExceptionReporter
             'database_id' => $this->databaseId !== null && $this->databaseId !== '' ? '***configured***' : null,
             'environment' => $context['environment'] ?? 'unknown',
             'ignored_exceptions_count' => count($this->ignoredExceptions),
-            'rate_limiting' => [
-                'enabled' => config('notion-exceptions.rate_limit.enabled', true),
-                'max_per_minute' => config('notion-exceptions.rate_limit.max_per_minute', 10),
-            ],
         ];
     }
 

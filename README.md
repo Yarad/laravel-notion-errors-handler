@@ -6,7 +6,6 @@ A Laravel package that reports exceptions to a Notion database, similar to Sentr
 
 - 📝 Automatic exception reporting to Notion database
 - 🔄 Groups identical exceptions (updates occurrence count instead of creating duplicates)
-- 🚦 Built-in rate limiting to prevent API flooding
 - 📊 Collects request context (URL, method, IP, etc.)
 - ⚙️ Highly configurable field names and behaviors
 - 🎯 Laravel 10, 11, and 12 support
@@ -138,12 +137,6 @@ return [
         'exception_class' => 'Exception Class',
         'file' => 'File',
         'line' => 'Line',
-    ],
-
-    // Rate limiting configuration
-    'rate_limit' => [
-        'enabled' => true,
-        'max_per_minute' => 10,
     ],
 
     // Context categories to collect

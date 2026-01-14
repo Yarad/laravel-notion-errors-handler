@@ -12,7 +12,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 use Yarad\NotionExceptionHandler\Notion\DatabaseManager;
-use Yarad\NotionExceptionHandler\RateLimiter\ExceptionRateLimiter;
 use Yarad\NotionExceptionHandler\Serialization\ExceptionSerializer;
 
 class ReportExceptionJob implements ShouldQueue
@@ -43,22 +42,8 @@ class ReportExceptionJob implements ShouldQueue
      */
     public function handle(
         DatabaseManager $databaseManager,
-        ExceptionRateLimiter $rateLimiter,
         ExceptionSerializer $exceptionSerializer,
     ): void {
-        // Check rate limiting
-        if (!$rateLimiter->shouldAllowGlobal()) {
-            $this->logRateLimited('global');
-
-            return;
-        }
-
-        if (!$rateLimiter->shouldAllow($this->fingerprint)) {
-            $this->logRateLimited($this->fingerprint);
-
-            return;
-        }
-
         // Reconstruct exception from data
         $exception = $exceptionSerializer->fromArray($this->exceptionData);
 
@@ -69,21 +54,6 @@ class ReportExceptionJob implements ShouldQueue
             fingerprint: $this->fingerprint,
             context: $this->context,
         );
-    }
-
-    /**
-     * Log when an exception is rate limited.
-     */
-    protected function logRateLimited(string $limitType): void
-    {
-        $exceptionClass = $this->exceptionData['class'] ?? \Exception::class;
-        $message = $this->exceptionData['message'] ?? '';
-
-        Log::debug('Notion exception handler: Rate limited (queued job)', [
-            'exception' => $exceptionClass,
-            'message' => $message,
-            'limit_type' => $limitType,
-        ]);
     }
 
     /**

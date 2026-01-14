@@ -59,21 +59,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Rate Limiting
-    |--------------------------------------------------------------------------
-    |
-    | Configure rate limiting to prevent overwhelming the Notion API
-    | during exception storms.
-    |
-    */
-    'rate_limit' => [
-        'enabled' => env('NOTION_RATE_LIMIT_ENABLED', true),
-        'max_per_minute' => env('NOTION_RATE_LIMIT_MAX', 10),
-        'cache_driver' => env('NOTION_RATE_LIMIT_CACHE_DRIVER', null), // null = default cache driver
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Context Collection
     |--------------------------------------------------------------------------
     |

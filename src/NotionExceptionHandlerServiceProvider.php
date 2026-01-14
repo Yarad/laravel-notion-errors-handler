@@ -13,7 +13,6 @@ use Yarad\NotionExceptionHandler\Fingerprint\FingerprintGenerator;
 use Yarad\NotionExceptionHandler\Notion\Content\PageBuilder;
 use Yarad\NotionExceptionHandler\Notion\DatabaseManager;
 use Yarad\NotionExceptionHandler\Notion\NotionClient;
-use Yarad\NotionExceptionHandler\RateLimiter\ExceptionRateLimiter;
 use Yarad\NotionExceptionHandler\Serialization\ExceptionSerializer;
 
 class NotionExceptionHandlerServiceProvider extends ServiceProvider
@@ -71,21 +70,6 @@ class NotionExceptionHandlerServiceProvider extends ServiceProvider
     {
         $this->app->singleton(FingerprintGenerator::class, function () {
             return new FingerprintGenerator();
-        });
-
-        $this->app->singleton(ExceptionRateLimiter::class, function ($app) {
-            /** @var bool $enabled */
-            $enabled = config('notion-exceptions.rate_limit.enabled', true);
-            /** @var int $maxPerMinute */
-            $maxPerMinute = config('notion-exceptions.rate_limit.max_per_minute', 10);
-            /** @var string|null $cacheDriver */
-            $cacheDriver = config('notion-exceptions.rate_limit.cache_driver');
-
-            return new ExceptionRateLimiter(
-                cache: $app['cache']->driver($cacheDriver),
-                enabled: $enabled,
-                maxPerMinute: $maxPerMinute,
-            );
         });
 
         $this->app->singleton(RequestContextCollector::class, function () {

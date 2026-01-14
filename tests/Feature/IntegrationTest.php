@@ -140,7 +140,6 @@ class IntegrationTest extends TestCase
         $this->assertArrayHasKey('enabled', $status);
         $this->assertArrayHasKey('database_id', $status);
         $this->assertArrayHasKey('environment', $status);
-        $this->assertArrayHasKey('rate_limiting', $status);
     }
 
     private function thenReporterShouldBeInstanceOfExceptionReporter(mixed $reporter): void
