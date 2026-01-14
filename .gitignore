@@ -1,0 +1,6 @@
+.cursor
+.rules
+.devcontainer
+.phpunit.cache
+.php-cs-fixer.cache
+vendor

@@ -1,0 +1,12 @@
+parameters:
+    level: 8
+    paths:
+        - src
+    excludePaths:
+        - vendor
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Method .* has parameter .* with no type specified#'
+        - '#Cannot call method .* on mixed#'
+        -
+            identifier: missingType.generics
