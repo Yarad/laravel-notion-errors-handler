@@ -62,7 +62,7 @@ class ExceptionSerializer
     {
         $class = $data['class'] ?? \Exception::class;
         $message = $data['message'] ?? '';
-        $code = $data['code'] ?? 0;
+        $code = is_numeric($data['code'] ?? 0) ? (int) ($data['code']) : 0;
         $file = $data['file'] ?? '';
         $line = $data['line'] ?? 0;
 
